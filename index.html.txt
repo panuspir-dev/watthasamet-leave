@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบการลาออนไลน์ - โรงเรียนวัดท่าเสม็ด</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Prompt & Sarabun -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- React, ReactDOM, Babel, and Chart.js -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Prompt', 'Sarabun', sans-serif;
+            background-color: #f8fafc;
+        }
+        .sarabun {
+            font-family: 'Sarabun', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .print-area, .print-area * {
+                visibility: visible;
+            }
+            .print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased bg-slate-50 min-h-screen">
+    <div id="root"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, query, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Expose Firestore methods globally for Babel inline components
+        window.collection = collection;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.getDocs = getDocs;
+        window.onSnapshot = onSnapshot;
+        window.query = query;
+        window.addDoc = addDoc;
+        window.updateDoc = updateDoc;
+        window.deleteDoc = deleteDoc;
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'wat-thasamet-leave-app';
+        let firebaseConfig = {
+	// Import the functions you need from the SDKs you need
+	import { initializeApp } from "firebase/app";
+	import { getAnalytics } from "firebase/analytics";
+	// TODO: Add SDKs for Firebase products that you want to use
+	// https://firebase.google.com/docs/web/setup#available-libraries
+
+	// Your web app's Firebase configuration
+	// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+	const firebaseConfig = {
+  	apiKey: "AIzaSyDcWJx3L_huzicxdHjMGU-ZiwgtjeMbI28",
+  	authDomain: "wat-thasamet-leave-app.firebaseapp.com",
+  	projectId: "wat-thasamet-leave-app",
+  	storageBucket: "wat-thasamet-leave-app.firebasestorage.app",
+  	messagingSenderId: "524168071085",
+  	appId: "1:524168071085:web:f49f57d274a7d247500324",
+  	measurementId: "G-9FR6THCWQ2"
+	};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+};
+        
+        try {
+            if (typeof __firebase_config !== 'undefined') {
+                firebaseConfig = JSON.parse(__firebase_config);
+            }
+        } catch (e) {
+            console.warn("Firebase config fallback enabled");
+        }
+
+        window.appId = appId;
+        window.initFirebase = async () => {
+            if (!firebaseConfig.apiKey) {
+                console.log("Running in offline demo mode (Firebase config not present)");
+                return { db: null, auth: null, user: null };
+            }
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
+            }
+
+            return { db, auth, currentUser: auth.currentUser };
+        };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // Default Staff Initial Data for Wat Tha Samet School
+        const DEFAULT_STAFF = [
+            { id: 'T001', name: 'นายสุนทร ปานทอง', position: 'ผู้อำนวยการโรงเรียนวัดท่าเสม็ด', role: 'director', username: 'director', password: '123', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150' },
+            { id: 'T002', name: 'นางสาววิภาวรรณ สุขแก้ว', position: 'รองผู้อำนวยการกลุ่มบริหารงานบุคคล', role: 'approver', username: 'viphawan', password: '123', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150' },
+            { id: 'T003', name: 'นายสมชาย ใจดี', position: 'ครู ชำนาญการพิเศษ (กลุ่มสาระวิทยาศาสตร์)', role: 'teacher', username: 'somchai', password: '123', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150' },
+            { id: 'T004', name: 'นางกานดา มณีรัตน์', position: 'ครู ชำนาญการ (กลุ่มสาระภาษาไทย)', role: 'teacher', username: 'kanda', password: '123', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=150' },
+            { id: 'T005', name: 'นายณัฐพล ศรีวิชัย', position: 'ครูผู้ช่วย (กลุ่มสาระคณิตศาสตร์)', role: 'teacher', username: 'nattapol', password: '123', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150' }
+        ];
+
+        // Sample Leave Requests Data
+        const INITIAL_LEAVES = [
+            {
+                id: 'LV-2569-001',
+                staffId: 'T003',
+                staffName: 'นายสมชาย ใจดี',
+                position: 'ครู ชำนาญการพิเศษ',
+                leaveType: 'sick', // sick, personal, maternity, vacation, cancel
+                leaveTypeName: 'ลาป่วย',
+                reason: 'มีอาการไข้สูง และเจ็บคอ แพทย์สั่งให้พักผ่อน',
+                startDate: '2026-09-28',
+                endDate: '2026-09-29',
+                totalDays: 2,
+                contactAddress: '12/4 หมู่ 3 ต.ท่าเสม็ด อ.ชะอวด จ.นครศรีธรรมราช',
+                phone: '081-234-5678',
+                status: 'approved', // pending, approved, rejected
+                writtenAt: 'โรงเรียนวัดท่าเสม็ด',
+                writtenDate: '2026-09-27',
+                approverComment: 'อนุญาตให้ลาได้ตามระเบียบ',
+                approverName: 'นายสุนทร ปานทอง',
+                approvalDate: '2026-09-27',
+                createdAt: new Date('2026-09-27T08:30:00').toISOString(),
+                stats: { sickPast: 2, sickCurrent: 2, sickTotal: 4, personalPast: 1, personalCurrent: 0, personalTotal: 1 }
+            },
+            {
+                id: 'LV-2569-002',
+                staffId: 'T004',
+                staffName: 'นางกานดา มณีรัตน์',
+                position: 'ครู ชำนาญการ',
+                leaveType: 'personal',
+                leaveTypeName: 'ลากิจส่วนตัว',
+                reason: 'ติดต่อภารกิจสำคัญทางครอบครัวต่างจังหวัด',
+                startDate: '2026-09-30',
+                endDate: '2026-10-01',
+                totalDays: 2,
+                contactAddress: '88 ถนนราชดำเนิน อ.เมือง จ.นครศรีธรรมราช',
+                phone: '089-876-5432',
+                status: 'pending',
+                writtenAt: 'โรงเรียนวัดท่าเสม็ด',
+                writtenDate: '2026-09-29',
+                approverComment: '',
+                approverName: '',
+                approvalDate: '',
+                createdAt: new Date('2026-09-29T10:15:00').toISOString(),
+                stats: { sickPast: 1, sickCurrent: 0, sickTotal: 1, personalPast: 3, personalCurrent: 2, personalTotal: 5 }
+            }
+        ];
+
+        const ToastModal = ({ message, type, onClose }) => {
+            if (!message) return null;
+            const isSuccess = type === 'success';
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center transform transition-all scale-100">
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${isSuccess ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                            {isSuccess ? <i data-lucide="check-circle" className="w-8 h-8"></i> : <i data-lucide="alert-circle" className="w-8 h-8"></i>}
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800 mb-2">{isSuccess ? 'ดำเนินการสำเร็จ' : 'แจ้งเตือน'}</h3>
+                        <p className="text-sm text-slate-600 mb-6">{message}</p>
+                        <button
+                            onClick={onClose}
+                            className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl transition-all shadow-md active:scale-95"
+                        >
+                            ตกลง
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [currentUser, setCurrentUser] = useState(null); 
+            const [leaves, setLeaves] = useState(INITIAL_LEAVES);
+            const [staffList, setStaffList] = useState(DEFAULT_STAFF);
+            const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+            const [selectedLeaveForDetail, setSelectedLeaveForDetail] = useState(null);
+            const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
+            const [dbInstance, setDbInstance] = useState(null);
+
+            // Auth states
+            const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+            const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
+            const [showStaffLoginModal, setShowStaffLoginModal] = useState(false);
+            const [targetTabAfterLogin, setTargetTabAfterLogin] = useState(null);
+
+            // Refresh icons on state updates
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [activeTab, leaves, selectedLeaveForDetail, isAdminLoggedIn, showAdminLoginModal, showStaffLoginModal, staffList, currentUser]);
+
+            // Sync with Firestore Real-time DB
+            useEffect(() => {
+                let unsubscribe = () => {};
+                async function setupFirebase() {
+                    if (window.initFirebase) {
+                        const { db } = await window.initFirebase();
+                        if (db) {
+                            setDbInstance(db);
+                            setIsFirebaseConnected(true);
+                            
+                            const leaveColRef = collection(db, 'artifacts', window.appId, 'public', 'data', 'leave_requests');
+                            
+                            unsubscribe = onSnapshot(leaveColRef, (snapshot) => {
+                                if (!snapshot.empty) {
+                                    const fetchedLeaves = [];
+                                    snapshot.forEach((doc) => {
+                                        fetchedLeaves.push({ id: doc.id, ...doc.data() });
+                                    });
+                                    fetchedLeaves.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                                    setLeaves(fetchedLeaves);
+                                }
+                            }, (error) => {
+                                console.error("Firestore sync error:", error);
+                            });
+                        }
+                    }
+                }
+                setupFirebase();
+                return () => unsubscribe();
+            }, []);
+
+            const showNotification = (msg, type = 'success') => {
+                setToast({ show: true, message: msg, type });
+            };
+
+            const closeToast = () => {
+                setToast({ show: false, message: '', type: 'success' });
+            };
+
+            const handleStaffLogin = (username, password, directStaffObject = null) => {
+                let foundStaff = null;
+                if (directStaffObject) {
+                    foundStaff = directStaffObject;
+                } else {
+                    const u = (username || '').toLowerCase().trim();
+                    const p = (password || '').trim();
+                    foundStaff = staffList.find(s => 
+                        ((s.username && s.username.toLowerCase() === u) || (s.id && s.id.toLowerCase() === u)) && s.password === p
+                    );
+                }
+
+                if (foundStaff) {
+                    setCurrentUser(foundStaff);
+                    setShowStaffLoginModal(false);
+                    showNotification(`เข้าสู่ระบบบุคลากรเรียบร้อยแล้ว: ${foundStaff.name}`);
+                    if (targetTabAfterLogin) {
+                        setActiveTab(targetTabAfterLogin);
+                        setTargetTabAfterLogin(null);
+                    } else {
+                        setActiveTab('new-leave');
+                    }
+                } else {
+                    showNotification('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง กรุณาเลือกบัญชีด่วนหรือติดต่อ Admin', 'error');
+                }
+            };
+
+            const handleStaffLogout = () => {
+                setCurrentUser(null);
+                if (activeTab === 'new-leave' || activeTab === 'history') {
+                    setActiveTab('dashboard');
+                }
+                showNotification('ออกจากระบบบุคลากรเรียบร้อยแล้ว');
+            };
+
+            const handleNavigateTab = (tabName) => {
+                if ((tabName === 'new-leave' || tabName === 'history') && !currentUser) {
+                    setTargetTabAfterLogin(tabName);
+                    setShowStaffLoginModal(true);
+                    return;
+                }
+                setActiveTab(tabName);
+            };
+
+            const handleAdminLogin = (user, pass) => {
+                if (user === 'Admin TSM' && pass === 'TSM@2569') {
+                    setIsAdminLoggedIn(true);
+                    setShowAdminLoginModal(false);
+                    showNotification('เข้าสู่ระบบผู้ดูแลระบบ (Admin TSM) เรียบร้อยแล้ว');
+                } else {
+                    showNotification('ชื่อผู้ใช้หรือรหัสผ่านผู้ดูแลระบบไม่ถูกต้อง', 'error');
+                }
+            };
+
+            const handleAdminLogout = () => {
+                setIsAdminLoggedIn(false);
+                if (activeTab === 'admin-panel') {
+                    setActiveTab('dashboard');
+                }
+                showNotification('ออกจากระบบผู้ดูแลระบบเรียบร้อยแล้ว');
+            };
+
+            const handleAddStaff = (newStaff) => {
+                setStaffList(prev => [...prev, newStaff]);
+                showNotification(`เพิ่มบุคลากร ${newStaff.name} พร้อมกำหนด Username & Password เรียบร้อยแล้ว`);
+            };
+
+            const handleUpdateStaffCredentials = (staffId, newUsername, newPassword) => {
+                setStaffList(prev => prev.map(s => {
+                    if (s.id === staffId) {
+                        return { ...s, username: newUsername, password: newPassword };
+                    }
+                    return s;
+                }));
+                showNotification('อัปเดตข้อมูลเข้าสู่ระบบของบุคลากรเรียบร้อยแล้ว');
+            };
+
+            const handleDeleteStaff = (staffId) => {
+                setStaffList(prev => prev.filter(s => s.id !== staffId));
+                if (currentUser && currentUser.id === staffId) {
+                    setCurrentUser(null);
+                }
+                showNotification('ลบข้อมูลบุคลากรเรียบร้อยแล้ว');
+            };
+
+            const handleDeleteLeave = async (leaveId) => {
+                setLeaves(prev => prev.filter(l => l.id !== leaveId));
+                if (dbInstance) {
+                    try {
+                        const leaveDocRef = doc(dbInstance, 'artifacts', window.appId, 'public', 'data', 'leave_requests', leaveId);
+                        await window.deleteDoc(leaveDocRef);
+                    } catch (err) {
+                        console.error("Error deleting document from Firestore:", err);
+                    }
+                }
+                showNotification('ลบรายการใบลาเรียบร้อยแล้ว');
+            };
+
+            const handleSaveLeaveRequest = async (newLeaveData) => {
+                const staffMember = currentUser || staffList[2];
+                const leaveId = `LV-2569-${String(leaves.length + 1).padStart(3, '0')}`;
+                const completeData = {
+                    ...newLeaveData,
+                    id: leaveId,
+                    staffId: staffMember.id,
+                    staffName: staffMember.name,
+                    position: staffMember.position,
+                    status: 'pending',
+                    createdAt: new Date().toISOString(),
+                    approverComment: '',
+                    approverName: '',
+                    approvalDate: ''
+                };
+
+                setLeaves(prev => [completeData, ...prev]);
+
+                if (dbInstance) {
+                    try {
+                        const docRef = doc(dbInstance, 'artifacts', window.appId, 'public', 'data', 'leave_requests', leaveId);
+                        await setDoc(docRef, completeData);
+                    } catch (err) {
+                        console.error("Error saving leave to Firestore:", err);
+                    }
+                }
+
+                showNotification('ยื่นใบลาเรียบร้อยแล้ว ระบบได้ส่งเรื่องไปยังผู้บังคับบัญชาเพื่อรอการอนุมัติ');
+                setActiveTab('history');
+            };
+
+            const handleUpdateLeaveStatus = async (leaveId, newStatus, comment) => {
+                const approverName = currentUser ? currentUser.name : 'ผู้อำนวยการโรงเรียน';
+                const updatedLeaves = leaves.map(item => {
+                    if (item.id === leaveId) {
+                        return {
+                            ...item,
+                            status: newStatus,
+                            approverComment: comment,
+                            approverName: approverName,
+                            approvalDate: new Date().toISOString().split('T')[0]
+                        };
+                    }
+                    return item;
+                });
+
+                setLeaves(updatedLeaves);
+
+                if (dbInstance) {
+                    try {
+                        const leaveDocRef = doc(dbInstance, 'artifacts', window.appId, 'public', 'data', 'leave_requests', leaveId);
+                        await updateDoc(leaveDocRef, {
+                            status: newStatus,
+                            approverComment: comment,
+                            approverName: approverName,
+                            approvalDate: new Date().toISOString().split('T')[0]
+                        });
+                    } catch (err) {
+                        console.error("Error updating status in Firestore:", err);
+                    }
+                }
+
+                showNotification(`บันทึกการ${newStatus === 'approved' ? 'อนุญาต' : 'ไม่อนุญาต'}เรียบร้อยแล้ว`);
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col bg-slate-50">
+                    <header className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white shadow-lg sticky top-0 z-40">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex items-center justify-between h-20">
+                                <div className="flex items-center space-x-4">
+                                    <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center text-amber-300 font-bold text-xl shadow-inner">
+                                        <i data-lucide="graduation-cap" className="w-7 h-7"></i>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">โรงเรียนวัดท่าเสม็ด</h1>
+                                            {isFirebaseConnected && (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+                                                    Real-time Online
+                                                </span>
+                                            )}
+                                            {isAdminLoggedIn && (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-400 text-slate-900 shadow">
+                                                    <i data-lucide="shield-check" className="w-3.5 h-3.5 mr-1"></i>
+                                                    ผู้ดูแลระบบ (Admin)
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs sm:text-sm text-teal-100 font-light">ระบบบริหารจัดการวันลาออนไลน์ (Online Leave Management System)</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    {currentUser ? (
+                                        <div className="flex items-center gap-3 bg-white/10 p-2 rounded-xl border border-white/10">
+                                            <img src={currentUser.avatar} alt={currentUser.name} className="w-10 h-10 rounded-lg object-cover ring-2 ring-amber-400/50" />
+                                            <div className="hidden md:block text-left">
+                                                <div className="text-xs font-medium text-teal-200 flex items-center gap-1">
+                                                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                                    ผู้ยื่นใบลาปัจจุบัน
+                                                </div>
+                                                <div className="text-sm font-semibold text-white">{currentUser.name}</div>
+                                            </div>
+                                            <button
+                                                onClick={handleStaffLogout}
+                                                className="p-1.5 text-teal-200 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                                                title="ออกจากระบบบุคลากร"
+                                            >
+                                                <i data-lucide="log-out" className="w-4 h-4"></i>
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setShowStaffLoginModal(true)}
+                                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow transition-all flex items-center gap-1.5 active:scale-95 border border-emerald-400/30"
+                                        >
+                                            <i data-lucide="user-check" className="w-4 h-4"></i>
+                                            <span className="hidden sm:inline">เข้าสู่ระบบบุคลากร</span>
+                                        </button>
+                                    )}
+
+                                    {isAdminLoggedIn ? (
+                                        <button
+                                            onClick={handleAdminLogout}
+                                            className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow transition-all flex items-center gap-1.5 active:scale-95"
+                                            title="ออกจากระบบแอดมิน"
+                                        >
+                                            <i data-lucide="shield-alert" className="w-4 h-4"></i>
+                                            <span className="hidden sm:inline">ออกจาก Admin</span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => setShowAdminLoginModal(true)}
+                                            className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-900 rounded-xl text-xs font-bold shadow transition-all flex items-center gap-1.5 active:scale-95"
+                                        >
+                                            <i data-lucide="key-round" className="w-4 h-4"></i>
+                                            <span className="hidden sm:inline">แอดมิน (Admin)</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 scrollbar-none">
+                                <button
+                                    onClick={() => handleNavigateTab('dashboard')}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'dashboard' ? 'bg-white text-teal-900 shadow-md font-semibold' : 'text-teal-100 hover:bg-white/10'}`}
+                                >
+                                    <i data-lucide="layout-dashboard" className="w-4 h-4"></i>
+                                    แดชบอร์ดสรุปภาพรวม
+                                </button>
+                                <button
+                                    onClick={() => handleNavigateTab('new-leave')}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'new-leave' ? 'bg-white text-teal-900 shadow-md font-semibold' : 'text-teal-100 hover:bg-white/10'}`}
+                                >
+                                    <i data-lucide="file-plus" className="w-4 h-4"></i>
+                                    ยื่นใบลาออนไลน์
+                                    {!currentUser && <i data-lucide="lock" className="w-3.5 h-3.5 text-amber-300"></i>}
+                                </button>
+                                <button
+                                    onClick={() => handleNavigateTab('history')}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'history' ? 'bg-white text-teal-900 shadow-md font-semibold' : 'text-teal-100 hover:bg-white/10'}`}
+                                >
+                                    <i data-lucide="history" className="w-4 h-4"></i>
+                                    ประวัติการลาของฉัน
+                                    {!currentUser && <i data-lucide="lock" className="w-3.5 h-3.5 text-amber-300"></i>}
+                                </button>
+                                {(currentUser?.role === 'director' || currentUser?.role === 'approver' || isAdminLoggedIn) && (
+                                    <button
+                                        onClick={() => handleNavigateTab('approvals')}
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap relative ${activeTab === 'approvals' ? 'bg-white text-teal-900 shadow-md font-semibold' : 'text-teal-100 hover:bg-white/10'}`}
+                                    >
+                                        <i data-lucide="check-square" className="w-4 h-4"></i>
+                                        อนุมัติใบลา
+                                        {leaves.filter(l => l.status === 'pending').length > 0 && (
+                                            <span className="ml-1.5 px-2 py-0.5 text-xs font-bold bg-amber-400 text-amber-950 rounded-full">
+                                                {leaves.filter(l => l.status === 'pending').length}
+                                            </span>
+                                        )}
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => handleNavigateTab('personnel')}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'personnel' ? 'bg-white text-teal-900 shadow-md font-semibold' : 'text-teal-100 hover:bg-white/10'}`}
+                                >
+                                    <i data-lucide="users" className="w-4 h-4"></i>
+                                    สรุปวันลารายบุคคล
+                                </button>
+                                {isAdminLoggedIn && (
+                                    <button
+                                        onClick={() => handleNavigateTab('admin-panel')}
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap bg-amber-400 text-slate-900 shadow-md hover:bg-amber-300`}
+                                    >
+                                        <i data-lucide="settings" className="w-4 h-4"></i>
+                                        จัดการหลังบ้าน (Admin)
+                                    </button>
+                                )}
+                            </nav>
+                        </div>
+                    </header>
+
+                    <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+                        {activeTab === 'dashboard' && (
+                            <DashboardView leaves={leaves} staffList={staffList} onViewDetail={(item) => setSelectedLeaveForDetail(item)} />
+                        )}
+                        {activeTab === 'new-leave' && (
+                            currentUser ? (
+                                <NewLeaveForm onSubmit={handleSaveLeaveRequest} currentUser={currentUser} leaves={leaves} />
+                            ) : (
+                                <StaffLoginPrompt onLoginClick={() => setShowStaffLoginModal(true)} />
+                            )
+                        )}
+                        {activeTab === 'history' && (
+                            currentUser ? (
+                                <LeaveHistoryView leaves={leaves.filter(l => l.staffId === currentUser.id)} onViewDetail={(item) => setSelectedLeaveForDetail(item)} />
+                            ) : (
+                                <StaffLoginPrompt onLoginClick={() => setShowStaffLoginModal(true)} />
+                            )
+                        )}
+                        {activeTab === 'approvals' && (
+                            <ApprovalWorkflowView leaves={leaves} onUpdateStatus={handleUpdateLeaveStatus} onViewDetail={(item) => setSelectedLeaveForDetail(item)} />
+                        )}
+                        {activeTab === 'personnel' && (
+                            <PersonnelSummaryView staffList={staffList} leaves={leaves} />
+                        )}
+                        {activeTab === 'admin-panel' && isAdminLoggedIn && (
+                            <AdminManagementView 
+                                staffList={staffList} 
+                                leaves={leaves} 
+                                onAddStaff={handleAddStaff} 
+                                onDeleteStaff={handleDeleteStaff} 
+                                onDeleteLeave={handleDeleteLeave}
+                                onUpdateLeaveStatus={handleUpdateLeaveStatus}
+                                onUpdateStaffCredentials={handleUpdateStaffCredentials}
+                            />
+                        )}
+                    </main>
+
+                    {selectedLeaveForDetail && (
+                        <DocumentPreviewModal 
+                            leaveItem={selectedLeaveForDetail} 
+                            onClose={() => setSelectedLeaveForDetail(null)} 
+                        />
+                    )}
+
+                    {showStaffLoginModal && (
+                        <StaffLoginModal 
+                            staffList={staffList}
+                            onLogin={handleStaffLogin} 
+                            onClose={() => {
+                                setShowStaffLoginModal(false);
+                                setTargetTabAfterLogin(null);
+                            }} 
+                        />
+                    )}
+
+                    {showAdminLoginModal && (
+                        <AdminLoginModal 
+                            onLogin={handleAdminLogin} 
+                            onClose={() => setShowAdminLoginModal(false)} 
+                        />
+                    )}
+
+                    <ToastModal message={toast.message} type={toast.type} onClose={closeToast} />
+
+                    <footer className="bg-white border-t border-slate-200 mt-auto py-6 text-center text-xs text-slate-500">
+                        <p>ระบบการลาออนไลน์ - โรงเรียนวัดท่าเสม็ด สำนักงานเขตพื้นที่การศึกษาประถมศึกษานครศรีธรรมราช</p>
+                        <p className="mt-1 font-light">พัฒนาตามแบบฟอร์มหนังสือขอลาป่วย ลากิจส่วนตัว ลาคลอด และลาพักผ่อนทางราชการ</p>
+                    </footer>
+                </div>
+            );
+        }
+
+        function StaffLoginPrompt({ onLoginClick }) {
+            return (
+                <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200/80 p-8 text-center animate-fade-in my-8">
+                    <div className="w-16 h-16 bg-teal-50 text-teal-700 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-teal-100">
+                        <i data-lucide="lock" className="w-8 h-8"></i>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800 mb-2">ต้องเข้าสู่ระบบบุคลากรก่อน</h3>
+                    <p className="text-sm text-slate-500 mb-6">เพื่อความปลอดภัยและป้องกันการยื่นใบลาแทนกัน กรุณาเข้าสู่ระบบด้วย Username และ Password ที่ Admin กำหนดให้</p>
+                    <button
+                        onClick={onLoginClick}
+                        className="w-full py-3 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                        <i data-lucide="key-round" className="w-5 h-5"></i>
+                        เข้าสู่ระบบยื่นใบลา
+                    </button>
+                </div>
+            );
+        }
+
+        function StaffLoginModal({ staffList, onLogin, onClose }) {
+            const [selectedStaffId, setSelectedStaffId] = useState(staffList[2]?.id || staffList[0]?.id || '');
+            const [username, setUsername] = useState('somchai');
+            const [password, setPassword] = useState('123');
+            const [loginMode, setLoginMode] = useState('quick'); // 'quick' or 'manual'
+
+            // Auto sync username/password when select staff changed in quick mode
+            useEffect(() => {
+                const found = staffList.find(s => s.id === selectedStaffId);
+                if (found) {
+                    setUsername(found.username || found.id);
+                    setPassword(found.password || '123');
+                }
+            }, [selectedStaffId, staffList]);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (loginMode === 'quick') {
+                    const found = staffList.find(s => s.id === selectedStaffId);
+                    if (found) {
+                        onLogin('', '', found);
+                        return;
+                    }
+                }
+                onLogin(username, password);
+            };
+
+            const handleQuickSelectUser = (staff) => {
+                onLogin('', '', staff);
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+                        <button
+                            onClick={onClose}
+                            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 bg-slate-100 rounded-full transition-colors"
+                        >
+                            <i data-lucide="x" className="w-5 h-5"></i>
+                        </button>
+
+                        <div className="text-center mb-6">
+                            <div className="w-14 h-14 bg-teal-100 text-teal-800 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
+                                <i data-lucide="user-check" className="w-8 h-8"></i>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-800">เข้าสู่ระบบบุคลากรยื่นใบลา</h3>
+                            <p className="text-xs text-slate-500 mt-1">โรงเรียนวัดท่าเสม็ด • เลือกรายชื่อตนเองหรือกรอก Username/Password</p>
+                        </div>
+
+                        {/* Mode Switcher */}
+                        <div className="flex bg-slate-100 p-1 rounded-xl mb-5 text-xs font-semibold">
+                            <button
+                                type="button"
+                                onClick={() => setLoginMode('quick')}
+                                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${loginMode === 'quick' ? 'bg-white text-teal-900 shadow-sm font-bold' : 'text-slate-600'}`}
+                            >
+                                <i data-lucide="zap" className="w-3.5 h-3.5 text-amber-500"></i>
+                                เข้าสู่ระบบด่วน (คลิกเลือกชื่อ)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setLoginMode('manual')}
+                                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${loginMode === 'manual' ? 'bg-white text-teal-900 shadow-sm font-bold' : 'text-slate-600'}`}
+                            >
+                                <i data-lucide="key-round" className="w-3.5 h-3.5 text-teal-600"></i>
+                                กรอก Username/Pass
+                            </button>
+                        </div>
+
+                        {loginMode === 'quick' ? (
+                            <div className="space-y-3 mb-4">
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                    คลิกเลือกชื่อบุคลากรเพื่อเข้าสู่ระบบทันที:
+                                </label>
+                                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                    {staffList.map((s) => (
+                                        <button
+                                            key={s.id}
+                                            type="button"
+                                            onClick={() => handleQuickSelectUser(s)}
+                                            className="w-full p-3 rounded-xl border border-slate-200 hover:border-teal-500 hover:bg-teal-50/60 transition-all flex items-center justify-between text-left group"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <img src={s.avatar} alt={s.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-100" />
+                                                <div>
+                                                    <div className="font-bold text-sm text-slate-800 group-hover:text-teal-900">{s.name}</div>
+                                                    <div className="text-xs text-slate-500">{s.position}</div>
+                                                </div>
+                                            </div>
+                                            <span className="px-3 py-1 bg-teal-800 text-white rounded-lg text-xs font-semibold opacity-90 group-hover:opacity-100 shadow-sm flex items-center gap-1">
+                                                เข้าใช้ <i data-lucide="arrow-right" className="w-3.5 h-3.5"></i>
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">ชื่อผู้ใช้งาน (Username / รหัสครู)</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        placeholder="เช่น somchai หรือ T003"
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none font-semibold text-slate-800 text-sm"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">รหัสผ่าน (Password)</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none font-semibold text-slate-800 text-sm"
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    className="w-full py-3 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 mt-2 text-sm"
+                                >
+                                    <i data-lucide="log-in" className="w-4 h-4"></i>
+                                    เข้าสู่ระบบยื่นใบลา
+                                </button>
+                            </form>
+                        )}
+
+                        <div className="mt-5 p-3 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+                            <i data-lucide="info" className="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+                            <div>
+                                <span className="font-bold">คำแนะนำ:</span> Admin สามารถเปลี่ยน/กำหนด Username และ Password ของครูแต่ละท่านได้ตลอดเวลาผ่านเมนู <strong>"จัดการหลังบ้าน (Admin)"</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function DashboardView({ leaves, staffList, onViewDetail }) {
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            const stats = useMemo(() => {
+                const pending = leaves.filter(l => l.status === 'pending').length;
+                const approved = leaves.filter(l => l.status === 'approved').length;
+                const totalStaff = staffList.length;
+                const todayLeaves = leaves.filter(l => l.status === 'approved' && l.startDate <= todayStr && l.endDate >= todayStr).length;
+
+                const sickCount = leaves.filter(l => l.leaveType === 'sick').length;
+                const personalCount = leaves.filter(l => l.leaveType === 'personal').length;
+                const vacationCount = leaves.filter(l => l.leaveType === 'vacation').length;
+                const maternityCount = leaves.filter(l => l.leaveType === 'maternity').length;
+
+                return { pending, approved, totalStaff, todayLeaves, sickCount, personalCount, vacationCount, maternityCount };
+            }, [leaves, staffList, todayStr]);
+
+            return (
+                <div className="space-y-6 animate-fade-in">
+                    {/* Welcome Banner */}
+                    <div className="bg-gradient-to-r from-teal-900 to-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-md relative overflow-hidden">
+                        <div className="relative z-10 max-w-2xl">
+                            <span className="inline-block px-3 py-1 bg-amber-400 text-slate-900 font-bold text-xs rounded-full mb-3 shadow">
+                                แดชบอร์ดสรุปภาพรวม Real-time
+                            </span>
+                            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">ยินดีต้อนรับสู่ระบบการลาออนไลน์</h2>
+                            <p className="text-teal-100 text-sm mt-2 font-light leading-relaxed">
+                                โรงเรียนวัดท่าเสม็ด สำนักงานเขตพื้นที่การศึกษาประถมศึกษานครศรีธรรมราช ตรวจสอบและติดตามสถานะการลาป่วย ลากิจ ลาพักผ่อน และอนุมัติใบลาได้ในจุดเดียว
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Stats Summary Cards Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                            <div className="flex items-center justify-between text-rose-600 mb-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase">บุคลากรลาวันนี้</span>
+                                <div className="p-2 bg-rose-50 rounded-xl"><i data-lucide="user-minus" className="w-5 h-5"></i></div>
+                            </div>
+                            <div className="text-2xl sm:text-3xl font-black text-slate-800">{stats.todayLeaves} <span className="text-xs font-normal text-slate-500">คน</span></div>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                            <div className="flex items-center justify-between text-amber-500 mb-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase">รอพิจารณาอนุมัติ</span>
+                                <div className="p-2 bg-amber-50 rounded-xl"><i data-lucide="clock" className="w-5 h-5"></i></div>
+                            </div>
+                            <div className="text-2xl sm:text-3xl font-black text-slate-800">{stats.pending} <span className="text-xs font-normal text-slate-500">ฉบับ</span></div>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                            <div className="flex items-center justify-between text-emerald-600 mb-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase">อนุญาตแล้วปีนี้</span>
+                                <div className="p-2 bg-emerald-50 rounded-xl"><i data-lucide="check-circle-2" className="w-5 h-5"></i></div>
+                            </div>
+                            <div className="text-2xl sm:text-3xl font-black text-slate-800">{stats.approved} <span className="text-xs font-normal text-slate-500">ครั้ง</span></div>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                            <div className="flex items-center justify-between text-indigo-600 mb-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase">บุคลากรทั้งหมด</span>
+                                <div className="p-2 bg-indigo-50 rounded-xl"><i data-lucide="users" className="w-5 h-5"></i></div>
+                            </div>
+                            <div className="text-2xl sm:text-3xl font-black text-slate-800">{stats.totalStaff} <span className="text-xs font-normal text-slate-500">คน</span></div>
+                        </div>
+                    </div>
+
+                    {/* Leave Type Breakdown Summary */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">ป่วย</div>
+                            <div>
+                                <div className="text-xs text-slate-500">ลาป่วยสะสม</div>
+                                <div className="text-lg font-bold text-slate-800">{stats.sickCount} รายการ</div>
+                            </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">กิจ</div>
+                            <div>
+                                <div className="text-xs text-slate-500">ลากิจส่วนตัว</div>
+                                <div className="text-lg font-bold text-slate-800">{stats.personalCount} รายการ</div>
+                            </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">พัก</div>
+                            <div>
+                                <div className="text-xs text-slate-500">ลาพักผ่อน</div>
+                                <div className="text-lg font-bold text-slate-800">{stats.vacationCount} รายการ</div>
+                            </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">คลอด</div>
+                            <div>
+                                <div className="text-xs text-slate-500">ลาคลอดบุตร</div>
+                                <div className="text-lg font-bold text-slate-800">{stats.maternityCount} รายการ</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Recent Leave Requests List Table */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="file-text" className="w-5 h-5 text-teal-600"></i>
+                                รายการขอลาล่าสุด
+                            </h3>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase bg-slate-50">
+                                        <th className="py-3 px-3">เลขที่</th>
+                                        <th className="py-3 px-3">ชื่อ-สกุล</th>
+                                        <th className="py-3 px-3">ประเภท</th>
+                                        <th className="py-3 px-3">ช่วงวันที่ลา</th>
+                                        <th className="py-3 px-3 text-center">จำนวนวัน</th>
+                                        <th className="py-3 px-3">สถานะ</th>
+                                        <th className="py-3 px-3 text-right">เอกสาร</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {leaves.map((item) => (
+                                        <tr key={item.id} className="hover:bg-slate-50">
+                                            <td className="py-3 px-3 font-mono text-xs">{item.id}</td>
+                                            <td className="py-3 px-3 font-semibold text-slate-800">{item.staffName}</td>
+                                            <td className="py-3 px-3 font-medium text-teal-700">{item.leaveTypeName}</td>
+                                            <td className="py-3 px-3 text-xs text-slate-600">{item.startDate} ถึง {item.endDate}</td>
+                                            <td className="py-3 px-3 text-center font-bold">{item.totalDays}</td>
+                                            <td className="py-3 px-3"><StatusBadge status={item.status} /></td>
+                                            <td className="py-3 px-3 text-right">
+                                                <button
+                                                    onClick={() => onViewDetail(item)}
+                                                    className="px-2.5 py-1 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg transition-all"
+                                                >
+                                                    ดูใบลา
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function NewLeaveForm({ onSubmit, currentUser, leaves }) {
+            const [leaveType, setLeaveType] = useState('sick');
+            const [reason, setReason] = useState('');
+            const [startDate, setStartDate] = useState('');
+            const [endDate, setEndDate] = useState('');
+            const [totalDays, setTotalDays] = useState(1);
+            const [contactAddress, setContactAddress] = useState('12/4 หมู่ 3 ต.ท่าเสม็ด อ.ชะอวด จ.นครศรีธรรมราช');
+            const [phone, setPhone] = useState('081-234-5678');
+            const [writtenAt, setWrittenAt] = useState('โรงเรียนวัดท่าเสม็ด');
+            const [writtenDate, setWrittenDate] = useState(new Date().toISOString().split('T')[0]);
+
+            useEffect(() => {
+                if (startDate && endDate) {
+                    const s = new Date(startDate);
+                    const e = new Date(endDate);
+                    const diffTime = e - s;
+                    if (diffTime >= 0) {
+                        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                        setTotalDays(days);
+                    } else {
+                        setTotalDays(1);
+                    }
+                }
+            }, [startDate, endDate]);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (!startDate || !endDate || !reason) {
+                    alert("กรุณากรอกข้อมูลวันที่และเหตุผลการลาให้ครบถ้วน");
+                    return;
+                }
+
+                let typeName = 'ลาป่วย';
+                if (leaveType === 'personal') typeName = 'ลากิจส่วนตัว';
+                if (leaveType === 'vacation') typeName = 'ลาพักผ่อน';
+                if (leaveType === 'maternity') typeName = 'ลาคลอดบุตร';
+                if (leaveType === 'cancel') typeName = 'ขอยกเลิกวันลา';
+
+                onSubmit({
+                    leaveType,
+                    leaveTypeName: typeName,
+                    reason,
+                    startDate,
+                    endDate,
+                    totalDays,
+                    contactAddress,
+                    phone,
+                    writtenAt,
+                    writtenDate
+                });
+            };
+
+            return (
+                <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 sm:p-8 animate-fade-in">
+                    <div className="border-b border-slate-100 pb-4 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-teal-100 text-teal-800 rounded-xl">
+                                <i data-lucide="file-signature" className="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-800">แบบฟอร์มยื่นใบลาออนไลน์</h2>
+                                <p className="text-xs text-slate-500 mt-0.5">ถอดแบบจากหนังสือขอลาป่วย ลากิจ ลาคลอด และลาพักผ่อน โรงเรียนวัดท่าเสม็ด</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-6 text-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">เขียนที่</label>
+                                <input
+                                    type="text"
+                                    value={writtenAt}
+                                    onChange={(e) => setWrittenAt(e.target.value)}
+                                    className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">วันที่เขียนใบลา</label>
+                                <input
+                                    type="date"
+                                    value={writtenDate}
+                                    onChange={(e) => setWrittenDate(e.target.value)}
+                                    className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block font-bold text-slate-700 mb-2">ประเภทการลา <span className="text-rose-500">*</span></label>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {[
+                                    { id: 'sick', label: 'ลาป่วย' },
+                                    { id: 'personal', label: 'ลากิจส่วนตัว' },
+                                    { id: 'vacation', label: 'ลาพักผ่อน' },
+                                    { id: 'maternity', label: 'ลาคลอดบุตร' },
+                                    { id: 'cancel', label: 'ขอยกเลิกวันลา' }
+                                ].map((t) => (
+                                    <button
+                                        key={t.id}
+                                        type="button"
+                                        onClick={() => setLeaveType(t.id)}
+                                        className={`py-3 px-4 rounded-xl border font-semibold text-xs transition-all flex items-center justify-center gap-2 ${leaveType === t.id ? 'bg-teal-800 text-white border-teal-800 shadow-md' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                                    >
+                                        {t.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block font-bold text-slate-700 mb-1">เหตุผลในการขอลา <span className="text-rose-500">*</span></label>
+                            <textarea
+                                required
+                                rows="3"
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                placeholder="ระบุเหตุผล เช่น มีอาการไข้สูง ปวดศีรษะ แพทย์สั่งให้พักผ่อน..."
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none"
+                            ></textarea>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1">ตั้งแต่วันที่ <span className="text-rose-500">*</span></label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1">ถึงวันที่ <span className="text-rose-500">*</span></label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1">จำนวนวันลา (วัน)</label>
+                                <input
+                                    type="number"
+                                    readOnly
+                                    value={totalDays}
+                                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-100 font-bold text-slate-800"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1">ที่อยู่ที่ติดต่อได้ระหว่างลา</label>
+                                <input
+                                    type="text"
+                                    value={contactAddress}
+                                    onChange={(e) => setContactAddress(e.target.value)}
+                                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1">หมายเลขโทรศัพท์</label>
+                                <input
+                                    type="text"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="w-full py-3.5 bg-teal-800 hover:bg-teal-900 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 text-base"
+                        >
+                            <i data-lucide="send" className="w-5 h-5"></i>
+                            ยื่นใบลาต่อผู้บังคับบัญชา
+                        </button>
+                    </form>
+                </div>
+            );
+        }
+
+        function LeaveHistoryView({ leaves, onViewDetail }) {
+            return (
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 animate-fade-in space-y-4">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800">ประวัติการลาของข้าพเจ้า</h2>
+                            <p className="text-sm text-slate-500 mt-0.5">รายการประวัติและติดตามสถานะการลาทั้งหมดของคุณ</p>
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase bg-slate-50/80">
+                                    <th className="py-3 px-4 rounded-l-xl">เลขที่ใบลา</th>
+                                    <th className="py-3 px-4">ประเภท</th>
+                                    <th className="py-3 px-4">ระยะเวลาที่ลา</th>
+                                    <th className="py-3 px-4 text-center">จำนวนวัน</th>
+                                    <th className="py-3 px-4">สถานะ</th>
+                                    <th className="py-3 px-4 text-right rounded-r-xl">เอกสาร</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-sm">
+                                {leaves.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="6" className="text-center py-10 text-slate-400">
+                                            ไม่พบประวัติการขอลา
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    leaves.map((item) => (
+                                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="py-3.5 px-4 font-mono font-medium text-slate-700">{item.id}</td>
+                                            <td className="py-3.5 px-4 font-semibold text-teal-800">{item.leaveTypeName}</td>
+                                            <td className="py-3.5 px-4 text-slate-600">{item.startDate} ถึง {item.endDate}</td>
+                                            <td className="py-3.5 px-4 text-center font-bold text-slate-800">{item.totalDays}</td>
+                                            <td className="py-3.5 px-4">
+                                                <StatusBadge status={item.status} />
+                                            </td>
+                                            <td className="py-3.5 px-4 text-right">
+                                                <button
+                                                    onClick={() => onViewDetail(item)}
+                                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg transition-all"
+                                                >
+                                                    <i data-lucide="eye" className="w-3.5 h-3.5"></i>
+                                                    เปิดดูใบลา
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        function ApprovalWorkflowView({ leaves, onUpdateStatus, onViewDetail }) {
+            const [filterStatus, setFilterStatus] = useState('pending');
+            const [commentMap, setCommentMap] = useState({});
+
+            const filteredLeaves = useMemo(() => {
+                if (filterStatus === 'all') return leaves;
+                return leaves.filter(l => l.status === filterStatus);
+            }, [leaves, filterStatus]);
+
+            const handleCommentChange = (id, text) => {
+                setCommentMap(prev => ({ ...prev, [id]: text }));
+            };
+
+            return (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800">ระบบพิจารณาอนุมัติใบลา</h2>
+                            <p className="text-sm text-slate-500 mt-1">สำหรับผู้อำนวยการโรงเรียนและผู้บังคับบัญชาตามลำดับชั้น</p>
+                        </div>
+
+                        <div className="flex p-1 bg-slate-100 rounded-xl text-xs font-medium">
+                            <button
+                                onClick={() => setFilterStatus('pending')}
+                                className={`px-3 py-1.5 rounded-lg transition-all ${filterStatus === 'pending' ? 'bg-white text-slate-800 shadow-sm font-bold' : 'text-slate-600'}`}
+                            >
+                                รอพิจารณา ({leaves.filter(l => l.status === 'pending').length})
+                            </button>
+                            <button
+                                onClick={() => setFilterStatus('approved')}
+                                className={`px-3 py-1.5 rounded-lg transition-all ${filterStatus === 'approved' ? 'bg-white text-slate-800 shadow-sm font-bold' : 'text-slate-600'}`}
+                            >
+                                อนุญาตแล้ว
+                            </button>
+                            <button
+                                onClick={() => setFilterStatus('all')}
+                                className={`px-3 py-1.5 rounded-lg transition-all ${filterStatus === 'all' ? 'bg-white text-slate-800 shadow-sm font-bold' : 'text-slate-600'}`}
+                            >
+                                ทั้งหมด
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                        {filteredLeaves.length === 0 ? (
+                            <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-200/80">
+                                <i data-lucide="check-circle-2" className="w-12 h-12 mx-auto mb-3 text-slate-300"></i>
+                                <p>ไม่มีรายการที่รอการพิจารณาอนุมัติในขณะนี้</p>
+                            </div>
+                        ) : (
+                            filteredLeaves.map((item) => (
+                                <div key={item.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 hover:border-slate-300 transition-all space-y-4">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold">
+                                                {item.staffName.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-slate-800 text-base">{item.staffName}</h4>
+                                                <p className="text-xs text-slate-500">{item.position} • เลขที่: {item.id}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <StatusBadge status={item.status} />
+                                            <button
+                                                onClick={() => onViewDetail(item)}
+                                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all flex items-center gap-1"
+                                            >
+                                                <i data-lucide="file-text" className="w-3.5 h-3.5"></i>
+                                                ดูแบบใบลาตัวเต็ม
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+                                        <div>
+                                            <span className="text-xs text-slate-400 block">ประเภทการลา</span>
+                                            <span className="font-bold text-teal-800">{item.leaveTypeName}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-slate-400 block">เหตุผล</span>
+                                            <span className="text-slate-700">{item.reason}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-slate-400 block">ช่วงวันทำการ</span>
+                                            <span className="font-semibold text-slate-800">{item.startDate} ถึง {item.endDate} ({item.totalDays} วัน)</span>
+                                        </div>
+                                    </div>
+
+                                    {item.status === 'pending' ? (
+                                        <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                            <input
+                                                type="text"
+                                                placeholder="บันทึกความเห็นผู้บังคับบัญชา (เช่น อนุญาตให้ลาได้ตามระเบียบ)..."
+                                                value={commentMap[item.id] || ''}
+                                                onChange={(e) => handleCommentChange(item.id, e.target.value)}
+                                                className="flex-1 px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                                            />
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <button
+                                                    onClick={() => onUpdateStatus(item.id, 'approved', commentMap[item.id] || 'อนุญาตให้ลาได้ตามระเบียบ')}
+                                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
+                                                >
+                                                    <i data-lucide="check" className="w-4 h-4"></i>
+                                                    คำสั่ง: อนุญาต
+                                                </button>
+                                                <button
+                                                    onClick={() => onUpdateStatus(item.id, 'rejected', commentMap[item.id] || 'ไม่อนุญาตเนื่องจากมีภารกิจจำเป็น')}
+                                                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
+                                                >
+                                                    <i data-lucide="x" className="w-4 h-4"></i>
+                                                    คำสั่ง: ไม่อนุญาต
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-xs text-slate-500 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 flex justify-between items-center">
+                                            <span><strong>ความเห็น:</strong> {item.approverComment || 'อนุญาตตามระเบียบ'}</span>
+                                            <span><strong>ผู้อนุมัติ:</strong> {item.approverName} ({item.approvalDate})</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        function PersonnelSummaryView({ staffList, leaves }) {
+            const [selectedStaffId, setSelectedStaffId] = useState(staffList[0].id);
+
+            const staffMember = useMemo(() => {
+                return staffList.find(s => s.id === selectedStaffId) || staffList[0];
+            }, [staffList, selectedStaffId]);
+
+            const staffLeaves = useMemo(() => {
+                return leaves.filter(l => l.staffId === selectedStaffId && l.status === 'approved');
+            }, [leaves, selectedStaffId]);
+
+            const summary = useMemo(() => {
+                const sickDays = staffLeaves.filter(l => l.leaveType === 'sick').reduce((a, b) => a + b.totalDays, 0);
+                const personalDays = staffLeaves.filter(l => l.leaveType === 'personal').reduce((a, b) => a + b.totalDays, 0);
+                const vacationDays = staffLeaves.filter(l => l.leaveType === 'vacation').reduce((a, b) => a + b.totalDays, 0);
+
+                return {
+                    sickDays,
+                    sickQuota: 60,
+                    personalDays,
+                    personalQuota: 45,
+                    vacationDays,
+                    vacationQuota: 10
+                };
+            }, [staffLeaves]);
+
+            return (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800">สรุปวันลารายบุคคล</h2>
+                            <p className="text-sm text-slate-500 mt-1">สรุปโควตาและจำนวนวันลาสะสมรายคน โรงเรียนวัดท่าเสม็ด</p>
+                        </div>
+
+                        <div className="w-full sm:w-auto">
+                            <select
+                                value={selectedStaffId}
+                                onChange={(e) => setSelectedStaffId(e.target.value)}
+                                className="w-full px-4 py-2 bg-slate-100 rounded-xl text-sm font-semibold text-slate-800 border-none outline-none cursor-pointer"
+                            >
+                                {staffList.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name} ({s.position})</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row items-center gap-6">
+                        <img src={staffMember.avatar} alt={staffMember.name} className="w-20 h-20 rounded-2xl object-cover ring-4 ring-slate-100" />
+                        <div className="text-center sm:text-left flex-1">
+                            <h3 className="text-lg font-bold text-slate-800">{staffMember.name}</h3>
+                            <p className="text-sm text-teal-700 font-medium">{staffMember.position}</p>
+                            <p className="text-xs text-slate-400 mt-1">รหัสบุคลากร: {staffMember.id} • สังกัด โรงเรียนวัดท่าเสม็ด</p>
+                        </div>
+                        <div className="bg-teal-50 px-5 py-3 rounded-xl border border-teal-100 text-center">
+                            <span className="text-xs text-teal-800 font-medium block">รวมวันลาปีนี้</span>
+                            <span className="text-2xl font-black text-teal-800">{summary.sickDays + summary.personalDays + summary.vacationDays}</span>
+                            <span className="text-xs text-teal-800 ml-1">วันทำการ</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm font-bold text-slate-800">สิทธิการลาป่วย</span>
+                                <span className="text-xs text-slate-500 font-medium">{summary.sickDays} / {summary.sickQuota} วัน</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                                <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min((summary.sickDays / summary.sickQuota) * 100, 100)}%` }}></div>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-2">คงเหลือ {summary.sickQuota - summary.sickDays} วัน</p>
+                        </div>
+
+                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm font-bold text-slate-800">สิทธิการลากิจส่วนตัว</span>
+                                <span className="text-xs text-slate-500 font-medium">{summary.personalDays} / {summary.personalQuota} วัน</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                                <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min((summary.personalDays / summary.personalQuota) * 100, 100)}%` }}></div>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-2">คงเหลือ {summary.personalQuota - summary.personalDays} วัน</p>
+                        </div>
+
+                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm font-bold text-slate-800">สิทธิการลาพักผ่อน</span>
+                                <span className="text-xs text-slate-500 font-medium">{summary.vacationDays} / {summary.vacationQuota} วัน</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                                <div className="bg-blue-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min((summary.vacationDays / summary.vacationQuota) * 100, 100)}%` }}></div>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-2">คงเหลือ {summary.vacationQuota - summary.vacationDays} วัน</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function AdminManagementView({ staffList, leaves, onAddStaff, onDeleteStaff, onDeleteLeave, onUpdateLeaveStatus, onUpdateStaffCredentials }) {
+            const [adminSubTab, setAdminSubTab] = useState('staff');
+            const [newStaffName, setNewStaffName] = useState('');
+            const [newStaffPos, setNewStaffPos] = useState('');
+            const [newStaffRole, setNewStaffRole] = useState('teacher');
+            const [newStaffUsername, setNewStaffUsername] = useState('');
+            const [newStaffPassword, setNewStaffPassword] = useState('1234');
+
+            const [editingStaffId, setEditingStaffId] = useState(null);
+            const [editUsername, setEditUsername] = useState('');
+            const [editPassword, setEditPassword] = useState('');
+
+            const handleCreateStaffSubmit = (e) => {
+                e.preventDefault();
+                if (!newStaffName.trim() || !newStaffPos.trim()) return;
+                
+                const newId = `T${String(staffList.length + 1).padStart(3, '0')}`;
+                onAddStaff({
+                    id: newId,
+                    name: newStaffName,
+                    position: newStaffPos,
+                    role: newStaffRole,
+                    username: newStaffUsername.trim() || `user_${newId.toLowerCase()}`,
+                    password: newStaffPassword.trim() || '1234',
+                    avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150`
+                });
+
+                setNewStaffName('');
+                setNewStaffPos('');
+                setNewStaffUsername('');
+                setNewStaffPassword('1234');
+            };
+
+            const startEditCredentials = (s) => {
+                setEditingStaffId(s.id);
+                setEditUsername(s.username || s.id);
+                setEditPassword(s.password || '123');
+            };
+
+            const saveCredentials = (staffId) => {
+                onUpdateStaffCredentials(staffId, editUsername.trim(), editPassword.trim());
+                setEditingStaffId(null);
+            };
+
+            return (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="p-2 bg-amber-400 text-slate-900 rounded-lg">
+                                    <i data-lucide="shield-check" className="w-6 h-6"></i>
+                                </span>
+                                <h2 className="text-xl font-bold">ระบบจัดการหลังบ้านผู้ดูแลระบบ (Admin Panel)</h2>
+                            </div>
+                            <p className="text-sm text-slate-400 mt-1">กำหนด Username & Password บุคลากร จัดการข้อมูล และควบคุมรายการใบลาทั้งหมด</p>
+                        </div>
+
+                        <div className="flex bg-slate-800 p-1 rounded-xl text-xs font-semibold">
+                            <button
+                                onClick={() => setAdminSubTab('staff')}
+                                className={`px-4 py-2 rounded-lg transition-all ${adminSubTab === 'staff' ? 'bg-amber-400 text-slate-900 font-bold' : 'text-slate-300'}`}
+                            >
+                                จัดการบุคลากร & รหัสผ่าน
+                            </button>
+                            <button
+                                onClick={() => setAdminSubTab('leaves')}
+                                className={`px-4 py-2 rounded-lg transition-all ${adminSubTab === 'leaves' ? 'bg-amber-400 text-slate-900 font-bold' : 'text-slate-300'}`}
+                            >
+                                จัดการรายการใบลา
+                            </button>
+                        </div>
+                    </div>
+
+                    {adminSubTab === 'staff' && (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 h-fit">
+                                <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <i data-lucide="user-plus" className="w-5 h-5 text-teal-600"></i>
+                                    เพิ่มบุคลากรใหม่ & กำหนดรหัสผ่าน
+                                </h3>
+                                <form onSubmit={handleCreateStaffSubmit} className="space-y-4 text-sm">
+                                    <div>
+                                        <label className="block font-semibold text-slate-700 mb-1">ชื่อ-นามสกุล <span className="text-rose-500">*</span></label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={newStaffName}
+                                            onChange={(e) => setNewStaffName(e.target.value)}
+                                            placeholder="เช่น นายสมศักดิ์ รักดี"
+                                            className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-semibold text-slate-700 mb-1">ตำแหน่ง/กลุ่มสาระ <span className="text-rose-500">*</span></label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={newStaffPos}
+                                            onChange={(e) => setNewStaffPos(e.target.value)}
+                                            placeholder="เช่น ครู ชำนาญการ"
+                                            className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none"
+                                        />
+                                    </div>
+
+                                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 space-y-3">
+                                        <div className="text-xs font-bold text-amber-900 flex items-center gap-1">
+                                            <i data-lucide="key" className="w-3.5 h-3.5"></i>
+                                            กำหนดสิทธิ์การเข้าสู่ระบบ (Admin เป็นผู้กำหนด)
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1">ชื่อผู้ใช้งาน (Username)</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={newStaffUsername}
+                                                onChange={(e) => setNewStaffUsername(e.target.value)}
+                                                placeholder="เช่น somsakti_t"
+                                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500 outline-none font-mono"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1">รหัสผ่าน (Password)</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={newStaffPassword}
+                                                onChange={(e) => setNewStaffPassword(e.target.value)}
+                                                placeholder="1234"
+                                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500 outline-none font-mono"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block font-semibold text-slate-700 mb-1">สิทธิ์การใช้งานในระบบ</label>
+                                        <select
+                                            value={newStaffRole}
+                                            onChange={(e) => setNewStaffRole(e.target.value)}
+                                            className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none text-xs"
+                                        >
+                                            <option value="teacher">ครู/บุคลากรทั่วไป (ยื่นใบลา)</option>
+                                            <option value="approver">ผู้พิจารณาอนุมัติ (รอง ผอ.)</option>
+                                            <option value="director">ผู้อำนวยการโรงเรียน (ผู้อนุมัติหลัก)</option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="w-full py-2.5 bg-teal-700 hover:bg-teal-800 text-white font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95"
+                                    >
+                                        <i data-lucide="plus-circle" className="w-4 h-4"></i>
+                                        บันทึกเพิ่มบุคลากร
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                                <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <i data-lucide="users" className="w-5 h-5 text-teal-600"></i>
+                                    รายชื่อบุคลากรและรหัสผ่านเข้าใช้ ({staffList.length} คน)
+                                </h3>
+                                <div className="divide-y divide-slate-100 overflow-x-auto">
+                                    {staffList.map((s) => (
+                                        <div key={s.id} className="py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <img src={s.avatar} alt={s.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-100" />
+                                                <div>
+                                                    <div className="font-bold text-sm text-slate-800">{s.name} <span className="text-xs text-slate-400 font-mono">({s.id})</span></div>
+                                                    <div className="text-xs text-slate-500">{s.position}</div>
+                                                </div>
+                                            </div>
+
+                                            {editingStaffId === s.id ? (
+                                                <div className="flex items-center gap-2 bg-amber-50 p-2 rounded-xl border border-amber-200 w-full sm:w-auto">
+                                                    <input
+                                                        type="text"
+                                                        value={editUsername}
+                                                        onChange={(e) => setEditUsername(e.target.value)}
+                                                        placeholder="User"
+                                                        className="w-24 px-2 py-1 text-xs border rounded font-mono"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={editPassword}
+                                                        onChange={(e) => setEditPassword(e.target.value)}
+                                                        placeholder="Pass"
+                                                        className="w-20 px-2 py-1 text-xs border rounded font-mono"
+                                                    />
+                                                    <button
+                                                        onClick={() => saveCredentials(s.id)}
+                                                        className="px-2 py-1 bg-emerald-600 text-white text-xs rounded font-bold"
+                                                    >
+                                                        บันทึก
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-3">
+                                                    <div className="text-xs font-mono bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700">
+                                                        User: <span className="font-bold text-teal-800">{s.username || s.id}</span> | Pass: <span className="font-bold text-slate-800">{s.password || '123'}</span>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={() => startEditCredentials(s)}
+                                                        className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                                        title="แก้ไข User/Pass"
+                                                    >
+                                                        <i data-lucide="key" className="w-4 h-4"></i>
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() => onDeleteStaff(s.id)}
+                                                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                                        title="ลบบุคลากรท่านนี้"
+                                                    >
+                                                        <i data-lucide="trash-2" className="w-4 h-4"></i>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {adminSubTab === 'leaves' && (
+                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                            <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <i data-lucide="file-spreadsheet" className="w-5 h-5 text-teal-600"></i>
+                                จัดการรายการใบลาทั้งหมดในระบบ
+                            </h3>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead>
+                                        <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase bg-slate-50">
+                                            <th className="py-3 px-3">เลขที่</th>
+                                            <th className="py-3 px-3">ชื่อผู้ขอลา</th>
+                                            <th className="py-3 px-3">ประเภท</th>
+                                            <th className="py-3 px-3">วันที่ลา</th>
+                                            <th className="py-3 px-3 text-center">จำนวนวัน</th>
+                                            <th className="py-3 px-3">สถานะ</th>
+                                            <th className="py-3 px-3 text-right">การจัดการ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {leaves.map((l) => (
+                                            <tr key={l.id} className="hover:bg-slate-50">
+                                                <td className="py-3 px-3 font-mono text-xs">{l.id}</td>
+                                                <td className="py-3 px-3 font-semibold text-slate-800">{l.staffName}</td>
+                                                <td className="py-3 px-3 font-medium text-teal-700">{l.leaveTypeName}</td>
+                                                <td className="py-3 px-3 text-xs text-slate-600">{l.startDate} ถึง {l.endDate}</td>
+                                                <td className="py-3 px-3 text-center font-bold">{l.totalDays}</td>
+                                                <td className="py-3 px-3"><StatusBadge status={l.status} /></td>
+                                                <td className="py-3 px-3 text-right">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        {l.status === 'pending' && (
+                                                            <button
+                                                                onClick={() => onUpdateLeaveStatus(l.id, 'approved', 'อนุมัติโดย Admin')}
+                                                                className="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded hover:bg-emerald-200"
+                                                            >
+                                                                อนุมัติ
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => onDeleteLeave(l.id)}
+                                                            className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                                                            title="ลบรายการใบลา"
+                                                        >
+                                                            <i data-lucide="trash-2" className="w-4 h-4"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function AdminLoginModal({ onLogin, onClose }) {
+            const [username, setUsername] = useState('Admin TSM');
+            const [password, setPassword] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onLogin(username.trim(), password.trim());
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 relative">
+                        <button
+                            onClick={onClose}
+                            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 bg-slate-100 rounded-full transition-colors"
+                        >
+                            <i data-lucide="x" className="w-5 h-5"></i>
+                        </button>
+
+                        <div className="text-center mb-6">
+                            <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
+                                <i data-lucide="shield-lock" className="w-8 h-8"></i>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-800">เข้าสู่ระบบผู้ดูแลระบบ (Admin)</h3>
+                            <p className="text-xs text-slate-500 mt-1">กรอก Username และ Password เพื่อเข้าใช้ระบบหลังบ้าน</p>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">ชื่อผู้ใช้งาน (User)</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    placeholder="Admin TSM"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-400 outline-none font-semibold text-slate-800"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">รหัสผ่าน (Password)</label>
+                                <input
+                                    type="password"
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-400 outline-none font-semibold text-slate-800"
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="w-full py-3 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 mt-2"
+                            >
+                                <i data-lucide="log-in" className="w-4 h-4"></i>
+                                เข้าสู่ระบบแอดมิน
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function DocumentPreviewModal({ leaveItem, onClose }) {
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-10 relative my-8 font-serif sarabun print-area">
+                        <button
+                            onClick={onClose}
+                            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 bg-slate-100 rounded-full transition-colors font-sans"
+                        >
+                            <i data-lucide="x" className="w-5 h-5"></i>
+                        </button>
+
+                        <div className="text-center space-y-1 mb-8 border-b pb-6 border-slate-200">
+                            <h2 className="text-xl font-bold tracking-wide">แบบใบลาป่วย ลาคลอดบุตร ลากิจส่วนตัว</h2>
+                            <p className="text-sm text-slate-600">เขียนที่ {leaveItem.writtenAt || 'โรงเรียนวัดท่าเสม็ด'}</p>
+                            <p className="text-sm text-slate-600">วันที่ {leaveItem.writtenDate || '29 กันยายน 2569'}</p>
+                        </div>
+
+                        <div className="space-y-4 text-slate-800 text-base leading-relaxed">
+                            <div className="flex gap-4">
+                                <span className="font-bold min-w-[60px]">เรื่อง:</span>
+                                <span>ขอ{leaveItem.leaveTypeName}</span>
+                            </div>
+                            <div className="flex gap-4">
+                                <span className="font-bold min-w-[60px]">เรียน:</span>
+                                <span>ผู้อำนวยการโรงเรียนวัดท่าเสม็ด</span>
+                            </div>
+
+                            <div className="pt-2">
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ข้าพเจ้า <span className="font-bold border-b border-dotted border-slate-400 px-2">{leaveItem.staffName}</span> 
+                                ตำแหน่ง <span className="font-bold border-b border-dotted border-slate-400 px-2">{leaveItem.position}</span> 
+                                สังกัด <span className="font-bold border-b border-dotted border-slate-400 px-2">โรงเรียนวัดท่าเสม็ด</span>
+                            </div>
+
+                            <div>
+                                มีความประสงค์ขอ <span className="font-bold underline">{leaveItem.leaveTypeName}</span> เนื่องจาก <span className="border-b border-dotted border-slate-400 px-2">{leaveItem.reason}</span>
+                            </div>
+
+                            <div>
+                                ตั้งแต่วันที่ <span className="font-bold">{leaveItem.startDate}</span> ถึงวันที่ <span className="font-bold">{leaveItem.endDate}</span> มีกำหนด <span className="font-bold">{leaveItem.totalDays}</span> วัน
+                            </div>
+
+                            <div>
+                                ในระหว่างลา จะติดต่อข้าพเจ้าได้ที่ <span className="border-b border-dotted border-slate-400 px-2">{leaveItem.contactAddress}</span> หมายเลขโทรศัพท์ <span className="font-bold">{leaveItem.phone}</span>
+                            </div>
+                        </div>
+
+                        <div className="my-6">
+                            <p className="font-bold text-sm mb-2">สถิติการลาในปีงบประมาณนี้</p>
+                            <table className="w-full border-collapse border border-slate-300 text-xs text-center">
+                                <thead>
+                                    <tr className="bg-slate-100">
+                                        <th className="border border-slate-300 p-2">ประเภทการลา</th>
+                                        <th className="border border-slate-300 p-2">ลามาแล้ว (วันทำการ)</th>
+                                        <th className="border border-slate-300 p-2">ลาครั้งนี้ (วันทำการ)</th>
+                                        <th className="border border-slate-300 p-2">รวมเป็น (วันทำการ)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td className="border border-slate-300 p-2">ป่วย/กิจ/พักผ่อน</td>
+                                        <td className="border border-slate-300 p-2">{leaveItem.stats?.sickPast || 0}</td>
+                                        <td className="border border-slate-300 p-2 font-bold">{leaveItem.totalDays}</td>
+                                        <td className="border border-slate-300 p-2">{(leaveItem.stats?.sickPast || 0) + leaveItem.totalDays}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-200 text-xs sm:text-sm">
+                            <div className="text-center space-y-2">
+                                <p className="font-bold">ความเห็นผู้บังคับบัญชา</p>
+                                <p className="text-slate-600 italic mt-4">{leaveItem.approverComment || '(รอดำเนินการ)'}</p>
+                                <div className="pt-8">
+                                    <p>(ลงชื่อ)...................................................</p>
+                                    <p className="text-xs text-slate-500 mt-1">ผู้ตรวจสอบ / ผู้บังคับบัญชา</p>
+                                </div>
+                            </div>
+
+                            <div className="text-center space-y-2">
+                                <p className="font-bold">คำสั่ง</p>
+                                <div className="flex justify-center gap-4 my-2">
+                                    <label className="flex items-center gap-1">
+                                        <input type="checkbox" checked={leaveItem.status === 'approved'} readOnly /> [ {leaveItem.status === 'approved' ? '✓' : ' '} ] อนุญาต
+                                    </label>
+                                    <label className="flex items-center gap-1">
+                                        <input type="checkbox" checked={leaveItem.status === 'rejected'} readOnly /> [ {leaveItem.status === 'rejected' ? '✓' : ' '} ] ไม่อนุญาต
+                                    </label>
+                                </div>
+                                <div className="pt-8">
+                                    <p>(ลงชื่อ) {leaveItem.approverName || '...................................................'}</p>
+                                    <p className="text-xs text-slate-500 mt-1">ตำแหน่ง ผู้อำนวยการโรงเรียนวัดท่าเสม็ด</p>
+                                    <p className="text-xs text-slate-500">วันที่ {leaveItem.approvalDate || '...../...../.....'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 text-center font-sans">
+                            <button
+                                onClick={() => window.print()}
+                                className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-xl transition-all shadow-md inline-flex items-center gap-2"
+                            >
+                                <i data-lucide="printer" className="w-4 h-4"></i>
+                                พิมพ์ใบลาฉบับนี้ (Print Document)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function StatusBadge({ status }) {
+            if (status === 'approved') {
+                return (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <i data-lucide="check-circle" className="w-3 h-3 mr-1 text-emerald-600"></i>
+                        อนุญาตแล้ว
+                    </span>
+                );
+            }
+            if (status === 'rejected') {
+                return (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
+                        <i data-lucide="x-circle" className="w-3 h-3 mr-1 text-rose-600"></i>
+                        ไม่อนุญาต
+                    </span>
+                );
+            }
+            return (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                    <i data-lucide="clock" className="w-3 h-3 mr-1 text-amber-600 animate-spin"></i>
+                    รออนุมัติ
+                </span>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
